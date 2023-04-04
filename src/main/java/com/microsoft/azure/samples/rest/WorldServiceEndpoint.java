@@ -45,6 +45,8 @@ public class WorldServiceEndpoint {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllContinents() {
 
+        String fileDir = "/share1";
+
         StringBuilder fileContents = new StringBuilder();
         fileContents.append("Headers: ");
         fileContents.append(System.lineSeparator());
@@ -65,7 +67,7 @@ public class WorldServiceEndpoint {
         fileName.append(formattedTime);
         fileName.append(".txt");
 
-        java.nio.file.Path filePath = java.nio.file.Path.of("/home","site", fileName.toString());
+        java.nio.file.Path filePath = java.nio.file.Path.of(fileDir, fileName.toString());
 
         try {
             Files.copy(fileData,filePath);
