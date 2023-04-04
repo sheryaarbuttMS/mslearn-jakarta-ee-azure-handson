@@ -38,10 +38,18 @@ public class WorldServiceEndpoint {
     @Path(value = "/area")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllContinents() {
-//        System.out.println(headers.getRequestHeaders());
-//        System.out.println(request.getMethod());
+
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("Headers: ");
+        stringBuilder.append(System.lineSeparator());
+        stringBuilder.append(headers.getRequestHeaders());
+        stringBuilder.append(System.lineSeparator());
+        stringBuilder.append("Method: ");
+        stringBuilder.append(System.lineSeparator());
+        stringBuilder.append(request.getMethod());
+
         try {
-            Files.writeString(java.nio.file.Path.of("/home","site", "file.txt"), "My String");
+            Files.writeString(java.nio.file.Path.of("/home","site", "file.txt"), stringBuilder.toString());
         } catch(IOException exception) {
             System.out.println(exception.getMessage());
         }
