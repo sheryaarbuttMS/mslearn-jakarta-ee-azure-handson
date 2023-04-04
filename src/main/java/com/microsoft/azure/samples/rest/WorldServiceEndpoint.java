@@ -6,6 +6,8 @@
 
 package com.microsoft.azure.samples.rest;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -13,9 +15,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.GenericEntity;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 
 import com.microsoft.azure.samples.controllers.CityService;
 import com.microsoft.azure.samples.controllers.CountryService;
@@ -30,10 +30,21 @@ public class WorldServiceEndpoint {
     @Inject
     CityService citySvc;
 
+    @Context
+    HttpHeaders headers;
+    @Context Request request;
+
     @GET
     @Path(value = "/area")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllContinents() {
+//        System.out.println(headers.getRequestHeaders());
+//        System.out.println(request.getMethod());
+        try {
+            Files.writeString(java.nio.file.Path.of("file.txt"), "My String");
+        } catch(IOException exception) {
+            System.out.println(exception.getMessage());
+        }
         List<String> continents = countrySvc.findAllContinents();
         return Response.ok(continents, MediaType.APPLICATION_JSON).build();
     }
