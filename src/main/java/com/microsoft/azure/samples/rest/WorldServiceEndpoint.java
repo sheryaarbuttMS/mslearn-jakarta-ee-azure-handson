@@ -6,11 +6,15 @@
 
 package com.microsoft.azure.samples.rest;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -50,6 +54,9 @@ public class WorldServiceEndpoint {
         fileContents.append(System.lineSeparator());
         fileContents.append(request.getMethod());
 
+        byte[] fileBytes = fileContents.toString().getBytes(StandardCharsets.UTF_8);
+        InputStream fileData = new ByteArrayInputStream(fileBytes);
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HHmmss");
         String formattedTime = LocalDateTime.now().format(formatter);
 
@@ -58,8 +65,11 @@ public class WorldServiceEndpoint {
         fileName.append(formattedTime);
         fileName.append(".txt");
 
+        java.nio.file.Path filePath = java.nio.file.Path.of("/home","site", fileName.toString());
+
         try {
-            Files.writeString(java.nio.file.Path.of("/home","site", fileName.toString()), fileContents.toString());
+            Files.copy(fileData,filePath);
+            fileData.close();
         } catch(IOException exception) {
             System.out.println(exception.getMessage());
         }
