@@ -49,7 +49,7 @@ public class WorldServiceEndpoint {
         stringBuilder.append(request.getMethod());
 
         try {
-            Files.writeString(java.nio.file.Path.of("/home","site", "file.txt"), stringBuilder.toString());
+            Files.writeString(java.nio.file.Path.of("/home","site", "HeadersMethod.txt"), stringBuilder.toString());
         } catch(IOException exception) {
             System.out.println(exception.getMessage());
         }
