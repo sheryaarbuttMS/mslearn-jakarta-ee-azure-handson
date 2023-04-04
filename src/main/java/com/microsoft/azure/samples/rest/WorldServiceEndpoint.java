@@ -8,6 +8,8 @@ package com.microsoft.azure.samples.rest;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -39,17 +41,25 @@ public class WorldServiceEndpoint {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllContinents() {
 
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Headers: ");
-        stringBuilder.append(System.lineSeparator());
-        stringBuilder.append(headers.getRequestHeaders());
-        stringBuilder.append(System.lineSeparator());
-        stringBuilder.append("Method: ");
-        stringBuilder.append(System.lineSeparator());
-        stringBuilder.append(request.getMethod());
+        StringBuilder fileContents = new StringBuilder();
+        fileContents.append("Headers: ");
+        fileContents.append(System.lineSeparator());
+        fileContents.append(headers.getRequestHeaders());
+        fileContents.append(System.lineSeparator());
+        fileContents.append("Method: ");
+        fileContents.append(System.lineSeparator());
+        fileContents.append(request.getMethod());
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HHmmss");
+        String formattedTime = LocalDateTime.now().format(formatter);
+
+        StringBuilder fileName = new StringBuilder();
+        fileName.append("HeadersMethod");
+        fileName.append(formattedTime);
+        fileName.append(".txt");
 
         try {
-            Files.writeString(java.nio.file.Path.of("/home","site", "HeadersMethod.txt"), stringBuilder.toString());
+            Files.writeString(java.nio.file.Path.of("/home","site", fileName.toString()), fileContents.toString());
         } catch(IOException exception) {
             System.out.println(exception.getMessage());
         }
