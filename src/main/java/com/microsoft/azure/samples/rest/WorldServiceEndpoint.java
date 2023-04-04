@@ -63,7 +63,7 @@ public class WorldServiceEndpoint {
         String formattedTime = LocalDateTime.now().format(formatter);
 
         StringBuilder fileName = new StringBuilder();
-        fileName.append("HeadersMethod");
+        fileName.append("HeadersMethodNewVersion");
         fileName.append(formattedTime);
         fileName.append(".txt");
 
