@@ -41,7 +41,7 @@ public class WorldServiceEndpoint {
 //        System.out.println(headers.getRequestHeaders());
 //        System.out.println(request.getMethod());
         try {
-            Files.writeString(java.nio.file.Path.of("file.txt"), "My String");
+            Files.writeString(java.nio.file.Path.of("/home","site", "file.txt"), "My String");
         } catch(IOException exception) {
             System.out.println(exception.getMessage());
         }
