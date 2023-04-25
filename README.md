@@ -12,7 +12,7 @@ https://learn.microsoft.com/ja-jp/azure/cost-management-billing/manage/upgrade-a
 ＊200USD分のクレジットは残るため費用はかかりません。後日費用が発生しないようにリソースを最後に削除する手順も記載しております。
 
 ③当ReadMeを開いたままにする
-④「VariablesList.txt」とした以下をローカルに保存し、開いたままにする
+④「VariablesList.txt」として以下をローカルに保存し、開いたままにする
 ---
 export LOCATION=japaneast
 ---
