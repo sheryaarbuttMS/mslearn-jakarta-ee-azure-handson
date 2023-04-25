@@ -1,310 +1,328 @@
-# Build and deploy Java EE(Jakarta EE) Application to JBoss EAP on Azure  App Service
-
-In this sample, you can learn how to deploy a Java EE(Jakarta EE) Application to JBoss EAP on Azure App Service.  
-This is a general Java EE (Jakarta EE) application. In the project, we used following technologies of Java EE.
-
-* `JAX-RS (JavaTM API for RESTful Web Services)` 
-* `JPA (JavaTM Persistence API)`
-* `CDI`
-* `JSON-B (JavaTM API for JSON Binding)`
-
-
-### Prerequire for this Module
-
-* Java SE 8 (or 11)
-* Azure CLI command
-* Azure Subscription
-* git command
-* Maven command
-* MySQL client command
-* jq command
-* Bash
-
-
-## List of all source code
-
-After you clone the project, you will see like following files and directories.
 
 ```text
-├── Azure-MySQL-Setup-For-Sample-App.md
-├── README.md
-├── pom.xml
-├── setup_mysql.sh
-├── src
-│   ├── main
-│   │   ├── java
-│   │   │   └── com
-│   │   │       └── microsoft
-│   │   │           └── azure
-│   │   │               └── samples
-│   │   │                   ├── JAXRSConfiguration.java
-│   │   │                   ├── controllers
-│   │   │                   │   ├── CityService.java
-│   │   │                   │   └── CountryService.java
-│   │   │                   ├── entities
-│   │   │                   │   ├── City.java
-│   │   │                   │   └── Country.java
-│   │   │                   └── rest
-│   │   │                       └── WorldServiceEndpoint.java
-│   │   ├── resources
-│   │   │   └── META-INF
-│   │   │       └── persistence.xml
-│   │   └── webapp
-│   │       └── WEB-INF
-│   │           ├── beans.xml
-│   │           ├── mysql-ds.xml
-│   │           └── web.xml
-│   └── test
-│       └── java
-│           └── com
-│               └── microsoft
-│                   └── azure
-│                       └── samples
-│                           └── SampleTest.java
-└── world.sql
-```
+ハンズオン手順
+事前準備
+①無償Azure Subscriptionを作成
+ref:
+https://azure.microsoft.com/ja-jp/free/
+
+②課金契約へアップグレード
+ref:
+https://learn.microsoft.com/ja-jp/azure/cost-management-billing/manage/upgrade-azure-subscription#upgrade-your-azure-free-account
+＊200USD分のクレジットは残るため費用はかかりません。後日費用が発生しないようにリソースを最後に削除する手順も記載しております。
+
+③当ReadMeを開いたままにする
+④「VariablesList.txt」とした以下をローカルに保存し、開いたままにする
+---
+export LOCATION=japaneast
+---
+export MYSQL_RG=***
+export MYSQL_HOST=*** 
+export MYSQL_USER=*** 
+export MYSQL_PASSWORD='***' 
+export MYSQL_CONNECTION_URL="jdbc:mysql://${MYSQL_HOST}:3306/world?useSSL=true&requireSSL=false" 
+
+---
+export WEBAPP_NAME=***
+export RESOURCEGROUP_NAME=***
+export WEBAPP_URL="https://${WEBAPP_NAME}.azurewebsites.net"
+---
+export VAULT_NAME=<unique_name> 
+---
+export MI_OBJECT_ID=***
+---
+export SA_NAME=<unique_name> 
+export SHARE_NAME=jbossshare 
+export AZ_DATABASE_NAME=world 
+export AZ_MYSQL_AD_NON_ADMIN_USERNAME=nonAdmin
+---
+export SA_KEY='***'
+---
+
+⑤portal.azure.comへログインし、Portalの画面を開いたままにする
+
+ハンズオンスタート
+1. MySQLをデプロイ
+
+・Cloud Shellをセットアップ(2分)
+→Portal画面真上のリソース検索バーの右横のターミナルアイコンをクリック
+→Cloud Shellがセットアップ済みでない場合、以下を選択
+①対象Subscriptionを選択
+②Create storageをクリック（2分かかる）
+③Bashを選択
+
+・以下変数をVariableListからセット（Webターミナルにペーストした場合のショートカット：Crtl + Shift + V）
+LOCATION
+
+・以下のコマンドを順番に実行
+Repoをクローン
+git clone https://github.com/sheryaarbuttMS/mslearn-jakarta-ee-azure-handson.git
+
+ディフォルトのリージョンをセット
+az configure --defaults location=${LOCATION}
+
+cd mslearn-jakarta-ee-azure-handson
+
+MySQL DBをデプロイ(8分)
+./setup_mysql.sh flexible
 
 
-## Overview of the code
+・ターミナルに表示された値をVariableList内の以下の変数にペースト
+MYSQL_RG
+MYSQL_HOST
+MYSQL_USER
+MYSQL_PASSWORD
 
-In this project, we will access to MySQL DB from Jakarta EE 8 Application.
-To connect to the MySQL from Java, you need implement and configure the project with following procedure.
+・ペースト後、以下の変数をターミナル上でセット
+MYSQL_RG
+MYSQL_HOST
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_CONNECTION_URL
 
-1. Create and Configure as a Jakarta EE 8 Project
-2. Add dependency for MySQL JDBC driver 
-3. Create a DataSource with JNDI on your Application Server
-4. Create a persisteence unit config for JPA on persistence.xml
-5. Inject EntityManager Instance
-6. Create Entity class and JPA Named Query
-7. Configure for working with JAX-RS and JSON-B in JBoss EAP
-8. Implement JAX-RS Endpoint
-9. Access to the RESTful Endpoint
 
-### 1. Create and Configure as a Jakarta EE 8 Project
+・以下のコマンドを順番に実行
 
-In this project, we created Jakarta EE 8 projects. In order to create the Jakarta EE 8 project, we need specify following dependencies on [pom.xml](pom.xml).
+DB作成スクリプトをダウンロード
+curl -o world-db.zip https://downloads.mysql.com/docs/world-db.zip
 
-```xml
-    <jakarta.jakartaee-api.version>8.0.0</jakarta.jakartaee-api.version>
-    ....
-    <dependency>
-      <groupId>jakarta.platform</groupId>
-      <artifactId>jakarta.jakartaee-api</artifactId>
-      <version>${jakarta.jakartaee-api.version}</version>
-      <scope>provided</scope>
-    </dependency>
-```
+展開
+unzip world-db.zip
 
-### 2. Add dependency for MySQL JDBC driver 
+cd world-db
 
-we added a dependency for MySQL JDBC driver as follows on `pom.xml`. If MySQL provide a new version of the JDBC driver, please change the version number.
+MySQLへログイン
+mysql -u azureuser -h ${MYSQL_HOST} -p
+(パスワードはVariablesList[MYSQL_PASSWORD]から取得 )
 
-```xml
-    <mysql-jdbc-driver>8.0.22</mysql-jdbc-driver>
+DBとテーブルを作成（6分30秒）
+source world.sql
 
-    <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
-      <version>${mysql-jdbc-driver}</version>
-    </dependency>
-```
+２.JBossをデプロイ
+・Webターミナルの真上の｛｝アイコンの左横のアイコンをクリックし、新規ターミナルを開く
+・以下のコマンドを順番に実行
 
-### 3. Create a DataSource with JNDI on your Application Server
+cd mslearn-jakarta-ee-azure-handson
 
-In order to create a DataSource, you need to create a DataSource on your Application Server.  
-Following [createMySQLDataSource.sh](src/main/webapp/WEB-INF/createMySQLDataSource.sh) script create the DataSource on JBoss EAP with JBoss CLI command.
+pomファイルをセットアップ（20-30秒、依存パッケージのダウンロード）
+./mvnw com.microsoft.azure:azure-webapp-maven-plugin:2.9.0:config
 
-```bash
-#!/usr/bin/bash
+・以下の値でプロンプトを進む（課金アカウントじゃないとこれ以上は進めない）
+Create new run configuration? (y)
+Available subscriptions:	Pick subscription
+Choose a Web Container Web App [\<create\>]:	1: <create>
+Define value for OS [Linux]:	Linux
+Define value for javaVersion [Java 17]:	2: Java 11
+Define value for runtimeStack:	1: Jbosseap 7
+Define value for pricingTier [P1v3]:	P1v3
+Confirm (Y/N) [Y]:	Y
 
-# In order to use the variables in CLI scripts
-# https://access.redhat.com/solutions/321513
-sed -i -e "s|.*<resolve-parameter-values.*|<resolve-parameter-values>true</resolve-parameter-values>|g" /opt/eap/bin/jboss-cli.xml
+・ターミナルに表示された値をVariableList内の以下の変数にペースト
+WEBAPP_NAME
+RESOURCEGROUP_NAME
 
-/opt/eap/bin/jboss-cli.sh --connect <<EOF
-data-source add --name=JPAWorldDataSourceDS \
---jndi-name=java:jboss/datasources/JPAWorldDataSource \
---connection-url=${MYSQL_CONNECTION_URL} \
---driver-name=ROOT.war_com.mysql.cj.jdbc.Driver_8_0 \
---user-name=${MYSQL_USER} \
---password=${MYSQL_PASSWORD} \
---min-pool-size=5 \
---max-pool-size=20 \
---blocking-timeout-wait-millis=5000 \
---enabled=true \
---driver-class=com.mysql.cj.jdbc.Driver \
---jta=true \
---use-java-context=true \
---valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker \
---exception-sorter-class-name=com.mysql.cj.jdbc.integration.jboss.ExtendedMysqlExceptionSorter
-reload --use-current-server-config=true
+・ペースト後、以下の変数をターミナル上でセット
+WEBAPP_NAME
+RESOURCEGROUP_NAME
+WEBAPP_URL
+
+
+・以下のコマンドでpom.xmlを開く
+code pom.xml
+
+・<plugin>配下の<region>の値を「japaneast」に修正
+
+・<deployment><resources>配下に以下をペースト
+              <resource>
+                <type>startup</type>
+                <directory>${project.basedir}/src/main/webapp/WEB-INF/</directory>
+                <includes>
+                  <include>createMySQLDataSource.sh</include>
+                </includes>
+              </resource>
+
+・保存し、CRTL + Q でVSCodeを閉じる
+
+・以下のコマンドを順番に実行
+
+依存パッケージをダウンロードし、アプリをパッケージ
+./mvnw clean package
+
+アプリをデプロイ（サブスクリプションが複数ある場合は対象サブスクリプションを選択）（7分30秒）
+./mvnw azure-webapp:deploy
+
+---
+・SQL実行中のターミナルに戻る
+・World DBのデータを以下のコマンドで確認
+
+show databases;
+use world;
+show tables;
+select * from country;
+
+・画面を閉じ、WebAppをデプロイしたターミナルに戻る
+
+---
+・改めて、VariablesListから以下の変数をターミナル上でセット
+MYSQL_RG
+MYSQL_HOST
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_CONNECTION_URL
+
+
+・以下のコマンドを順番に実行
+
+スタートアップファイルをセット
+az webapp config set --startup-file '/home/site/scripts/startup.sh' \
+-n ${WEBAPP_NAME} \
+-g ${RESOURCEGROUP_NAME}
+
+DB接続情報をWebAppに反映（Configが反映されるまで2分ほどかかる）
+az webapp config appsettings set \
+  --resource-group ${RESOURCEGROUP_NAME} --name ${WEBAPP_NAME} \
+  --settings \
+  MYSQL_CONNECTION_URL=${MYSQL_CONNECTION_URL} \
+  MYSQL_PASSWORD=${MYSQL_PASSWORD} \
+  MYSQL_USER=${MYSQL_USER}
+
+アプリ動作確認
+curl ${WEBAPP_URL}/area
+
+３．JBoss管理ツールを確認（任意）
+前提条件：azure CLIがローカルにインストール済み
+
+・以下のコマンドをローカルのターミナルにて順番に実行
+
+az webapp create-remote-connection -n <WEBAPP_NAME> -g <WEBAPP_RG>
+
+ssh root@127.0.0.1 -L 9990:localhost:9990 -p <PORT>
+
+JBossに接続
+/opt/eap/bin/jboss-cli.sh --connect
+
+動作確認
+:product-info
+
+/subsystem=datasources/data-source="JPAWorldDataSourceDS":test-connection-in-pool
+
 exit
-EOF
-```
 
-### 4. Create a persisteence unit config for JPA on persistence.xml
+Adminコンソールのセットアップ
+/opt/eap/bin/add-user.sh -u admin -p admin -r ManagementRealm
 
-After created the DataSource, you need create persistence unit config on [persistence.xml](src/main/resources/META-INF/persistence.xml) which is the configuration file of JPA.
+・以下ページをブラウザーにてアクセス（user: admin, pass:admin）
+http://127.0.0.1:9990/console
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<persistence version="2.2" xmlns="http://xmlns.jcp.org/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd">
-  <persistence-unit name="JPAWorldDatasourcePU" transaction-type="JTA">
-    <jta-data-source>java:jboss/datasources/JPAWorldDataSource</jta-data-source>
-    <exclude-unlisted-classes>false</exclude-unlisted-classes>
-    <properties>
-      <property name="hibernate.generate_statistics" value="true" />
-    </properties>
-  </persistence-unit>
-</persistence>
-```
+---
 
-### 5. Inject EntityManager Instance
+4. Edit to be store secrets in keyvault
+・Portal上でAppServiceのConfigurationを確認
 
-Then you can inject an EntityManager instance from annotated unitName with `@PersistenceContext` like follows.  
-In the `CountryService.java` and `CountryService.java` code, you can see the injected  EntityManager instance with @PersistenceContext annotation.
+・以下の変数を任意の値でVariableListにセットし、Webターミナルにexport
+VAULT_NAME
 
-Following is [CityService.java](src/main/java/com/microsoft/azure/samples/controllers/CityService.java)
+・以下のコマンドを順番に実行
 
-```java
-@Transactional(REQUIRED)
-@RequestScoped
-public class CityService {
-
-    @PersistenceContext(unitName = "JPAWorldDatasourcePU")
-    EntityManager em;
-
-    @Transactional(SUPPORTS)
-    public List<City> findOver1MillPopulation(String countrycode) {
-        TypedQuery<City> query = em.createNamedQuery("City.findOver1MillPopulation", City.class);
-        query.setParameter("countrycode", countrycode);
-        return query.getResultList();
-    }
-}
-```
-
-### 6. Create Entity class and JPA Named Query
-
-In the above [CityService.java](src/main/java/com/microsoft/azure/samples/controllers/CityService.java), we implelemted following method to query the cities, which have the population over 1 million.
-
-```java
-    @Transactional(SUPPORTS)
-    public List<City> findOver1MillPopulation(String countrycode) {
-        TypedQuery<City> query = em.createNamedQuery("City.findOver1MillPopulation", City.class);
-        query.setParameter("countrycode", countrycode);
-        return query.getResultList();
-    }
-```
-
-In the above code, we created a query as Named Query (`City.findOver1MillPopulation`) of JPA. The named query is defined on the Entity class as [City.java](src/main/java/com/microsoft/azure/samples/entities/City.java) as follows.　And we insert the query parameter as `countrycode` which refer to the `:countrycode` in the named query.
-
-Following `City` Entity class is mapping to the `CITY` table in MySQL as Object-Relational Mapping.
-
-```java
-@Entity
-@Table(name = "city")
-@NamedQueries({ @NamedQuery(name = "City.findAll", query = "SELECT c FROM City c"),
-        .....
-        @NamedQuery(name = "City.findOver1MillPopulation", query = "SELECT c FROM City c WHERE c.countryCode.code = :countrycode AND c.population > 1000000 ORDER BY c.population DESC") })
-public class City implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Basic(optional = false)
-    @Column(name = "ID")
-    private Integer id;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 35)
-    @Column(name = "Name")
-    private String name;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 20)
-    @Column(name = "District")
-    private String district;
-    @Basic(optional = false)
-    @NotNull
-    @Column(name = "Population")
-    private int population;
-    @JoinColumn(name = "CountryCode", referencedColumnName = "Code")
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JsonbTransient
-    private Country countryCode;
-
-    //Added Setter and Getter methods
-}
-```
+vault作成 (2分かかる、エラーになったらVAULT_NAMEを再度設定)
+az keyvault create --name ${VAULT_NAME} --resource-group ${RESOURCEGROUP_NAME} --location ${LOCATION}
 
 
-### 7. Configure for working with JAX-RS and JSON-B in JBoss EAP
+接続情報をkeyvaultにセット
+az keyvault secret set --vault-name ${VAULT_NAME} --name "MYSQL-CONNECTION-URL" --value ${MYSQL_CONNECTION_URL}
+az keyvault secret set --vault-name ${VAULT_NAME} --name "MYSQL-PASSWORD" --value ${MYSQL_PASSWORD}
+az keyvault secret set --vault-name ${VAULT_NAME} --name "MYSQL-USER" --value ${MYSQL_USER}
 
-We will implement the standard Jakarta EE 8 API only, so in order to use the JSON-B with JAX-RS. we need configure the following parameter in [web.xml](src/main/webapp/WEB-INF/web.xml) for JBoss EAP App.
+AppServiceのSystem Managed Identityを作成
+az webapp identity assign --name ${WEBAPP_NAME} --resource-group ${RESOURCEGROUP_NAME}
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd" version="4.0">
-    <context-param>
-        <param-name>resteasy.preferJacksonOverJsonB</param-name>
-        <param-value>false</param-value>
-    </context-param>
-</web-app>
-```
 
-If you didn't configure the above, you may see like following error.  
-[Stack Overflow : (De)Serializing JSON on Thorntails Use JSON-B Instead of Jackson](https://stackoverflow.com/questions/61483229/deserializing-json-on-thorntails-use-json-b-instead-of-jackson).
+・ターミナルに表示されたprincipalIdの値をVariableList内の以下の変数にペーストし、ターミナル上でExport
+MI_OBJECT_ID
 
-```
-2020-04-28 10:19:37,235 WARN  [org.jboss.as.jaxrs] (MSC service thread 1-6) 
-WFLYRS0018: Explicit usage of Jackson annotation in a JAX-RS deployment; the
- system will disable JSON-B processing for the current deployment. Consider 
-setting the 'resteasy.preferJacksonOverJsonB' property to 'false' to restore
- JSON-B.
-```
+・以下のコマンドを順番に実行
 
-### 8. Implement JAX-RS Endpoint
+作成されたManaged IdentityにKeyvaultの取得権限を付与
+az keyvault set-policy --name ${VAULT_NAME} --object-id ${MI_OBJECT_ID} --secret-permissions get
 
-Finally, you can implement the JAX-RS endpoint in [WorldServiceEndpoint.java](src/main/java/com/microsoft/azure/samples/rest/WorldServiceEndpoint.java) by injecting the `CityService` which implemented in the above.  
-And we configured to use the JSON-B in this project, so it automatically marshall the JSON data from Java object. As a result, it return the JSON data in the response.
+作成されたSecretをAppServiceに結び付ける
+az webapp config appsettings set \
+  --resource-group ${RESOURCEGROUP_NAME} --name ${WEBAPP_NAME} \
+  --settings \
+  MYSQL_CONNECTION_URL=@"Microsoft.KeyVault(VaultName=${VAULT_NAME};SecretName=MYSQL-CONNECTION-URL)" \
+  MYSQL_PASSWORD=@"Microsoft.KeyVault(VaultName=${VAULT_NAME};SecretName=MYSQL-PASSWORD)" \
+  MYSQL_USER=@"Microsoft.KeyVault(VaultName=${VAULT_NAME};SecretName=MYSQL-USER)"
 
-```java
-@Path("/")
-public class WorldServiceEndpoint {
+・PortalにてWebAppのConfigurationを確認
 
-    @Inject
-    CityService citySvc;
+・以下コマンドにて動作確認
+curl ${WEBAPP_URL}/area
 
-    @GET
-    @Produces(MediaType.APPLICATION_JSON)
-    @Path("/countries/{countrycode}")
-    public Response getCountry(@PathParam("countrycode") String countrycode) {
-        List<City> city = citySvc.findOver1MillPopulation(countrycode);
-        GenericEntity<List<City>> genericEntity = new GenericEntity<List<City>>(city) {
-        };
-        return Response.ok(genericEntity, MediaType.APPLICATION_JSON).build();
-    }
-}
-```
+5. Blob Storageをマウント
 
-### 9. Access to the RESTful Endpoint
+・Portal上でWebAppにSSHし、以下コマンドでログファイルを確認（任意）
+nl <file>.txt
 
-If you specify a country code after the /countries, you can get all the cities, which have population greater than a million within the county
+・任意の値でVariableList内の以下の変数を更新
+SA_NAME
 
-```bash
-curl https://jakartaee-app-on-jboss.azurewebsites.net/countries/JPN | jq '.[].name'
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--   100   788  100   788    0     0   2671      0 --:--:-- --:--:-- --:--:--  2662
-"Tokyo"
-"Jokohama [Yokohama]"
-"Osaka"
-"Nagoya"
-"Sapporo"
-"Kioto"
-"Kobe"
-"Fukuoka"
-"Kawasaki"
-"Hiroshima"
-"Kitakyushu"
+・更新後、以下の変数をターミナル上でセット
+SA_NAME
+SHARE_NAME
+AZ_DATABASE_NAME
+AZ_MYSQL_AD_NON_ADMIN_USERNAME
+
+・以下のコマンドを順番に実行
+StorageAccountを作成
+az storage account create --name ${SA_NAME} --resource-group ${RESOURCEGROUP_NAME} --location ${LOCATION}
+
+Shareを作成(ドライブ)
+az storage share create --account-name ${SA_NAME} --name ${SHARE_NAME}
+
+StorageAccount用のSASを取得
+az storage account keys list --account-name ${SA_NAME}
+
+
+・ターミナルに表示された値をVariableList内の以下の変数にペーストし、ターミナル上でexport
+SA_KEY
+
+・以下のコマンドを順番に実行
+
+WebAppに上記Shareをマウント
+az webapp config storage-account add -g ${RESOURCEGROUP_NAME} -n ${WEBAPP_NAME} \
+  --custom-id customID \
+  --storage-type AzureFiles \
+  --account-name ${SA_NAME} \
+  --share-name ${SHARE_NAME} \
+  --access-key ${SA_KEY} \
+  --mount-path /share1
+
+ソースコードを「/home」から「/share1」にログファイルを保存するように更新
+code src/main/java/com/microsoft/azure/samples/rest/WorldServiceEndpoint.java
+
+アプリをパッケージ
+./mvnw clean package
+アプリをAzureに展開
+./mvnw azure-webapp:deploy
+
+・Portal上でWebAppにSSHし、以下コマンドでログファイルを確認
+cd /share1
+ls
+
+・Webターミナルに戻り、以下コマンドで動作確認
+curl ${WEBAPP_URL}/area
+
+・Portal上でログファイルが正しく作成されたか確認
+ls
+
+・Portal上でリソースグループを選択し、残っているリソースグループを削除
+・削除済みであることを確認
+---
+END
+---
+
+
+
+
+
 ```
